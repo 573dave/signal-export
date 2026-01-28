@@ -30,7 +30,6 @@ This codebase was modernized in January 2026 with assistance from Claude (Anthro
 - **Hover Tooltips:** HTML view shows full sender details on hover
 - **Data Attributes:** Machine-readable metadata for programmatic access
 
-See [ARCHIVAL_COMPLIANCE.md](ARCHIVAL_COMPLIANCE.md) for detailed documentation on archival features and limitations.
 
 All changes maintain backward compatibility and preserve existing functionality. The codebase now follows modern Python standards while keeping the same MIT license.  
 This is currently the only known way to back-up Signal Desktop and also the only way to get some form of backup for iPhone/iOS users. Signal's developers have so far refused to give iOS users any means to export a back-up and they have shot down any attempts and all viable solutions; even when they were extraordinary safe solutions. Signal's developers have refused to offer an explanation as to why they wish to deny us any means of backing up our data, even when this can be done in a simple and secure way - even through AMB or on iCloud. It looks like, unfortunately, Signal wants to keep your iOS data hostage at all costs. So good news: if your Signal Desktop instance is in-sync with your iPhone, you can now at least create a backup to HTML and/or PDF files so that at least your message history is safe to some extent. (Note: from the time you started using Desktop. Anything before that time is not included.) Of course if you wish to upload this as a backup to a cloud service, then I strongly recommend uploading it in an encrypted container for your own safety - don't ever upload the plain-text HTML/PDF!
@@ -236,7 +235,6 @@ You can also use `--old /previously/exported/dir/` to merge the new export with 
 - Set up continuous backups (recommended: every 4-6 hours)
 - Use `--old` flag to merge new exports with previous ones
 - Never overwrite previous exports
-- See [ARCHIVAL_COMPLIANCE.md](ARCHIVAL_COMPLIANCE.md) for complete recommendations
 
 **✅ What IS Captured:**
 - Phone numbers of all message senders
@@ -312,17 +310,6 @@ Enjoy! :)
 - wkhtmltopdf (for PDF conversion) - or alternatives: WeasyPrint, Playwright
 - BeautifulSoup4, Click, Markdown (installed via requirements.txt)
 
-## Documentation
-
-- **[ARCHIVAL_COMPLIANCE.md](ARCHIVAL_COMPLIANCE.md)** - Comprehensive guide for legal/government archival use, including:
-  - Detailed explanation of archival features
-  - Compliance checklist and limitations
-  - Recommendations for continuous backup
-  - Deletion detection strategies
-  - Technical details on sender identification
-
-- **[CHANGES_SUMMARY.md](CHANGES_SUMMARY.md)** - Technical summary of all code changes for archival compliance
-
 ## Archival Compliance Summary
 
 This tool is suitable for legal/government record-keeping with the following considerations:
@@ -341,7 +328,7 @@ This tool is suitable for legal/government record-keeping with the following con
 - Point-in-time snapshot only
 - No cryptographic verification of authenticity
 
-**For critical archival needs:** Implement continuous backup (every 4-6 hours) using the `--old` merge feature to preserve message history before deletion. See [ARCHIVAL_COMPLIANCE.md](ARCHIVAL_COMPLIANCE.md) for complete recommendations.
+**For critical archival needs:** Implement continuous backup (every 4-6 hours) using the `--old` merge feature to preserve message history before deletion.
 
 ## Credits and License
 This project is released under the **MIT License**.
