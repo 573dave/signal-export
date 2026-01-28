@@ -115,8 +115,81 @@ def copy_attachments(src: Path, dest: Path, conversations: dict, contacts: dict)
                 logger.info(f"\t\tNo attachments for a message: {name}")
 
 
+def get_sender_info(msg: dict, contacts: dict, is_group: bool) -> dict:
+    """
+    Extract comprehensive sender information for archival purposes.
+    Returns dict with display_name, phone_number, profile_name, and source_id.
+    """
+    sender_info = {
+        "display_name": "Unknown-Sender",
+        "phone_number": None,
+        "profile_name": None,
+        "source_id": None,
+        "is_outgoing": False
+    }
+
+    # Check if message is outgoing (sent by the user)
+    if "type" in msg and msg["type"] == "outgoing":
+        sender_info["display_name"] = "Me"
+        sender_info["is_outgoing"] = True
+        # Try to get the user's own phone number from conversationId contact
+        if "conversationId" in msg and msg["conversationId"] in contacts:
+            sender_info["phone_number"] = contacts[msg["conversationId"]].get("number")
+        return sender_info
+
+    # For incoming messages, get source information
+    source_id = msg.get("source") or msg.get("sourceUuid")
+    sender_info["source_id"] = source_id
+
+    try:
+        if is_group:
+            # In group chats, match sender by source ID or phone number
+            for contact_id, contact in contacts.items():
+                contact_num = contact.get("number")
+                if contact_num and source_id and contact_num == source_id:
+                    sender_info["display_name"] = contact.get("name") or contact.get("profileName") or source_id
+                    sender_info["phone_number"] = contact_num
+                    sender_info["profile_name"] = contact.get("profileName")
+                    break
+            else:
+                # Sender not found in contacts, use source ID
+                sender_info["display_name"] = f"Unknown ({source_id[:8]}...)" if source_id else "Unknown"
+        else:
+            # For 1-on-1 chats, get sender from conversationId
+            if "conversationId" in msg and msg["conversationId"] in contacts:
+                contact = contacts[msg["conversationId"]]
+                sender_info["display_name"] = contact.get("name") or contact.get("profileName") or "Unknown"
+                sender_info["phone_number"] = contact.get("number")
+                sender_info["profile_name"] = contact.get("profileName")
+    except (KeyError, TypeError) as e:
+        logger.debug(f"Error extracting sender info: {e}")
+
+    return sender_info
+
+
+def format_sender_for_archive(sender_info: dict) -> str:
+    """
+    Format sender information for archival/legal compliance.
+    Returns string like: "John Doe [+1234567890]" or "John Doe [+1234567890] (Profile: JohnD)"
+    """
+    parts = [sender_info["display_name"]]
+
+    # Add phone number in brackets if available
+    if sender_info["phone_number"]:
+        parts.append(f"[{sender_info['phone_number']}]")
+    elif sender_info["source_id"] and not sender_info["is_outgoing"]:
+        # If no phone number but we have source ID, include it
+        parts.append(f"[ID:{sender_info['source_id'][:16]}]")
+
+    # Add profile name if different from display name
+    if sender_info["profile_name"] and sender_info["profile_name"] != sender_info["display_name"]:
+        parts.append(f"(Profile: {sender_info['profile_name']})")
+
+    return " ".join(parts)
+
+
 def make_simple(dest: Path, conversations: dict, contacts: dict) -> None:
-    """Output each conversation into a simple text file."""
+    """Output each conversation into a simple text file with enhanced sender identification."""
 
     dest = Path(dest)
     for key, messages in conversations.items():
@@ -128,6 +201,20 @@ def make_simple(dest: Path, conversations: dict, contacts: dict) -> None:
             name = "None"
 
         with open(dest / name / "index.md", "a") as mdfile:
+            # Write conversation metadata header
+            print("# Signal Conversation Export", file=mdfile)
+            print(f"**Conversation:** {contacts[key].get('name') or 'Unknown'}", file=mdfile)
+            print(f"**Conversation ID:** {key}", file=mdfile)
+            print(f"**Type:** {'Group Chat' if is_group else 'Direct Message'}", file=mdfile)
+            if contacts[key].get("number"):
+                print(f"**Phone Number:** {contacts[key]['number']}", file=mdfile)
+            if contacts[key].get("profileName"):
+                print(f"**Profile Name:** {contacts[key]['profileName']}", file=mdfile)
+            if is_group and "members" in contacts[key]:
+                print(f"**Group Members:** {', '.join(contacts[key]['members'])}", file=mdfile)
+            print(f"**Export Date:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", file=mdfile)
+            print(f"**Total Messages:** {len(messages)}", file=mdfile)
+            print("\n---\n", file=mdfile)
             for msg in messages:
                 timestamp = (
                     msg["timestamp"]
@@ -147,6 +234,7 @@ def make_simple(dest: Path, conversations: dict, contacts: dict) -> None:
 
                 logger.info(f"\t\tDoing {name}, msg: {date}")
 
+                # Get message body
                 try:
                     body = msg["body"]
                 except KeyError:
@@ -157,21 +245,15 @@ def make_simple(dest: Path, conversations: dict, contacts: dict) -> None:
                 body = body.replace("`", "")  # stop md code sections forming
                 body += "  "  # so that markdown newlines
 
-                sender = "No-Sender"
-                if "type" in msg.keys() and msg["type"] == "outgoing":
-                    sender = "Me"
-                else:
-                    try:
-                        if is_group:
-                            for c in contacts.values():
-                                num = c["number"]
-                                if num is not None and num == msg["source"]:
-                                    sender = c["name"]
-                        else:
-                            sender = contacts[msg["conversationId"]]["name"]
-                    except KeyError:
-                        logger.info(f"\t\tNo sender:\t\t{date}")
+                # Get comprehensive sender information
+                sender_info = get_sender_info(msg, contacts, is_group)
+                sender = format_sender_for_archive(sender_info)
 
+                # Get message ID if available for audit trail
+                msg_id = msg.get("id", "")
+                msg_uuid = msg.get("serverGuid") or msg.get("guid", "")
+
+                # Add attachments to body
                 try:
                     attachments = msg["attachments"]
                     for att in attachments:
@@ -191,9 +273,16 @@ def make_simple(dest: Path, conversations: dict, contacts: dict) -> None:
                         ]:
                             body += "!"
                         body += f"[{file_name}](./{path})  "
-                    print(f"[{date}] {sender}: {body}", file=mdfile)
                 except KeyError:
                     logger.info(f"\t\tNo attachments for a message: {name}, {date}")
+
+                # Format message with enhanced metadata
+                # Include message UUID if available for audit trail
+                msg_line = f"[{date}] {sender}: {body}"
+                if msg_uuid:
+                    msg_line += f"  <!-- MsgID: {msg_uuid} -->"
+
+                print(msg_line, file=mdfile)
 
 
 def fetch_data(db_file: Path, key: str, manual: bool = False, chats: Optional[list[str]] = None) -> tuple[dict, dict]:
@@ -406,8 +495,30 @@ def create_html(dest: Path, msgs_per_page: int = 100) -> None:
                         page_num += 1
 
                     date, sender, body = msg
-                    sender = sender[1:-1]
+                    sender = sender[1:-1]  # Remove leading/trailing space and colon
                     date, time = date[1:-1].replace(",", "").split(" ")
+
+                    # Extract phone number and profile name from sender if present
+                    # Format: "Name [+1234567890] (Profile: X)"
+                    sender_display = sender
+                    phone_number = ""
+                    profile_name = ""
+
+                    # Extract phone number or ID
+                    phone_match = re.search(r'\[([^\]]+)\]', sender)
+                    if phone_match:
+                        phone_number = phone_match.group(1)
+
+                    # Extract profile name
+                    profile_match = re.search(r'\(Profile: ([^\)]+)\)', sender)
+                    if profile_match:
+                        profile_name = profile_match.group(1)
+
+                    # Clean up sender for display (remove brackets and profile info for main display)
+                    # But keep it in data attributes for archival
+                    sender_clean = re.sub(r'\s*\[[^\]]+\]\s*', ' ', sender)
+                    sender_clean = re.sub(r'\s*\(Profile:[^\)]+\)\s*', '', sender_clean).strip()
+
                     body = md.convert(body)
 
                     # links
@@ -449,11 +560,24 @@ def create_html(dest: Path, msgs_per_page: int = 100) -> None:
                         temp.video.source["src"] = href
                         v.replace_with(temp)
 
-                    cl = "msg me" if sender == "Me" else "msg"
+                    cl = "msg me" if sender_clean.startswith("Me") else "msg"
+
+                    # Build data attributes for archival metadata
+                    data_attrs = ""
+                    if phone_number:
+                        data_attrs += f" data-phone='{phone_number}'"
+                    if profile_name:
+                        data_attrs += f" data-profile='{profile_name}'"
+
+                    # Create sender HTML with tooltip showing full info
+                    sender_title = sender  # Full sender info in tooltip
+                    sender_html = f"<span class=sender title='{sender_title}'{data_attrs}>{sender_clean}</span>"
+
                     print(
-                        f"<div class='{cl}'><span class=date>{date}</span>"
-                        f"<span class=time>{time}</span>",
-                        f"<span class=sender>{sender}</span>"
+                        f"<div class='{cl}'{data_attrs}>"
+                        f"<span class=date>{date}</span>"
+                        f"<span class=time>{time}</span>"
+                        f"{sender_html}"
                         f"<span class=body>{soup.prettify()}</span></div>",
                         file=htfile,
                     )
@@ -497,9 +621,20 @@ figure_template = """
 
 
 def lines_to_msgs(lines: list[str]) -> list:
-    p = re.compile(r"^(\[\d{4}-\d{2}-\d{2},{0,1} \d{2}:\d{2}\])(.*?:)(.*\n)")
+    """
+    Parse markdown lines into messages.
+    Now handles enhanced sender format: [timestamp] Name [+phone] (Profile: X): body
+    """
+    # Updated regex to handle phone numbers and profile names in sender field
+    # Matches: [date time] sender_info: body
+    # Where sender_info can include [phone], (Profile: name), etc.
+    p = re.compile(r"^(\[\d{4}-\d{2}-\d{2},{0,1} \d{2}:\d{2}\])(.+?:)(.*)")
     msgs = []
     for li in lines:
+        # Skip metadata header lines
+        if li.startswith('#') or li.startswith('**') or li.startswith('---'):
+            continue
+
         m = p.match(li)
         if m:
             msgs.append(list(m.groups()))
