@@ -1,4 +1,21 @@
+# Signal Export specific
 output/
+EXPORT/
+*.db
+*.db-*
+decrypted.db
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
