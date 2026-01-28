@@ -1,38 +1,59 @@
+/* CSS Variables for easy theming */
+:root {
+    --bg-color: #F6F6F6;
+    --text-color: rgb(73, 78, 82);
+    --link-color: rgb(52, 105, 160);
+    --msg-bg: #cecace;
+    --msg-me-bg: #bfd9d7;
+    --msg-width: 70ch;
+    --msg-offset: 20%;
+    --border-radius: 5px;
+    --spacing-unit: 0.8em;
+    --media-width: 300px;
+    --font-family: Carlito, Calibri, sans-serif;
+}
+
 * {
     box-sizing: border-box;
 }
 
 html {
-    background-color: #F6F6F6;
+    background-color: var(--bg-color);
     font-size: 16px;
     margin-left: calc(100vw - 100%);
     margin-right: 0;
 }
 
 body {
-    color: rgb(73, 78, 82);
-    font-family: Carlito, Calibri, sans-serif;
+    color: var(--text-color);
+    font-family: var(--font-family);
     line-height: 1.5;
+    max-width: 100%;
+    padding: 1em;
 }
 
 .msg {
-    width: 70ch;
-    border-radius: 5px;
-    padding: 0.8em;
-    background-color: #cecace;
+    max-width: var(--msg-width);
+    width: 100%;
+    border-radius: var(--border-radius);
+    padding: var(--spacing-unit);
+    background-color: var(--msg-bg);
+    margin-bottom: 1.5em;
+    break-inside: avoid;
 }
 
 .msg.me {
-    margin-left: 300px;
-    background-color: #bfd9d7;
+    margin-left: var(--msg-offset);
+    background-color: var(--msg-me-bg);
 }
 
 h1 {
     font-size: 2em;
+    break-after: avoid;
 }
 
 a {
-    color: rgb(52, 105, 160);
+    color: var(--link-color);
     text-decoration: none;
 }
 
@@ -46,6 +67,8 @@ div {
 
 .date, .time {
     float: right;
+    font-size: 0.9em;
+    color: rgba(73, 78, 82, 0.7);
 }
 
 .time {
@@ -60,17 +83,25 @@ div {
     display: block;
     margin-left: 3em;
     word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+figure {
+    break-inside: avoid;
 }
 
 figure > label > img, video {
     display: block;
-    width: 300px;
+    max-width: var(--media-width);
+    width: 100%;
+    height: auto;
 }
 
 label > img {
     cursor: pointer;
 }
 
+/* Modal image viewer */
 .modal {
     opacity: 0;
     visibility: hidden;
@@ -107,4 +138,67 @@ label > img {
 .modal-state:checked + .modal {
     opacity: 1;
     visibility: visible;
+}
+
+/* Print and PDF optimization */
+@media print {
+    html {
+        background-color: white;
+    }
+
+    body {
+        padding: 0;
+        max-width: none;
+    }
+
+    .msg {
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+
+    .modal {
+        display: none;
+    }
+
+    a {
+        color: inherit;
+    }
+
+    /* Ensure images don't overflow */
+    figure > label > img {
+        max-width: 100%;
+        page-break-inside: avoid;
+    }
+}
+
+/* Responsive design for mobile/tablet */
+@media (max-width: 768px) {
+    :root {
+        --msg-offset: 5%;
+        --msg-width: 90vw;
+        --media-width: 100%;
+    }
+
+    body {
+        padding: 0.5em;
+    }
+
+    .body {
+        margin-left: 1em;
+    }
+
+    .msg.me {
+        margin-left: var(--msg-offset);
+    }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg-color: #1e1e1e;
+        --text-color: #e0e0e0;
+        --link-color: #7db3d9;
+        --msg-bg: #3a3a3a;
+        --msg-me-bg: #2d5251;
+    }
 }
