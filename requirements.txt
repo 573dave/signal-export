@@ -1,4 +1,4 @@
-beautifulsoup4
-Click>=7.0
-Markdown>=3.0
-pysqlcipher3>=1.0.3
+beautifulsoup4>=4.14
+Click>=8.3
+Markdown>=3.10
+sqlcipher3>=0.5.3
