@@ -77,6 +77,22 @@ div {
 
 .sender {
     font-weight: bold;
+    cursor: help;
+}
+
+/* Show full sender info (including phone/profile) on hover for archival verification */
+.sender:hover::after {
+    content: attr(title);
+    position: absolute;
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 0.5em;
+    border-radius: 3px;
+    font-size: 0.85em;
+    font-weight: normal;
+    white-space: nowrap;
+    z-index: 100;
+    margin-left: 0.5em;
 }
 
 .body {
@@ -168,6 +184,23 @@ label > img {
     figure > label > img {
         max-width: 100%;
         page-break-inside: avoid;
+    }
+
+    /* Show full sender info in print for archival compliance */
+    .sender::after {
+        content: " [" attr(data-phone) "]";
+        font-weight: normal;
+        font-size: 0.85em;
+        color: #666;
+    }
+
+    .sender[data-profile]::after {
+        content: " [" attr(data-phone) "] (Profile: " attr(data-profile) ")";
+    }
+
+    /* If no phone but has profile */
+    .sender:not([data-phone])[data-profile]::after {
+        content: " (Profile: " attr(data-profile) ")";
     }
 }
 
